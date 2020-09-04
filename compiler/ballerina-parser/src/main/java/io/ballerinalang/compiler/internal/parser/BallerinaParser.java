@@ -13123,13 +13123,11 @@ public class BallerinaParser extends AbstractParser {
                             DiagnosticErrorCode.ERROR_BINDING_PATTERN_NOT_ALLOWED);
                 }
             }
+        } else if (firstArg.kind != SyntaxKind.NAMED_ARG_BINDING_PATTERN &&
+                firstArg.kind != SyntaxKind.REST_BINDING_PATTERN) {
+            addInvalidNodeToNextToken(firstArg, DiagnosticErrorCode.ERROR_BINDING_PATTERN_NOT_ALLOWED);
         } else {
-            if (firstArg.kind != SyntaxKind.NAMED_ARG_BINDING_PATTERN &&
-                    firstArg.kind != SyntaxKind.REST_BINDING_PATTERN) {
-                addInvalidNodeToNextToken(firstArg, DiagnosticErrorCode.ERROR_BINDING_PATTERN_NOT_ALLOWED);
-            } else {
-                argListBindingPatterns.add(firstArg);
-            }
+            argListBindingPatterns.add(firstArg);
         }
         parseErrorFieldBindingPatterns(argListBindingPatterns);
         return STNodeFactory.createNodeList(argListBindingPatterns);
