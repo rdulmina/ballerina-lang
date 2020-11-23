@@ -16,22 +16,14 @@
  */
 package org.ballerinalang.test.statements.vardeclr;
 
-import org.ballerinalang.core.model.values.BBoolean;
-import org.ballerinalang.core.model.values.BByte;
-import org.ballerinalang.core.model.values.BFloat;
-import org.ballerinalang.core.model.values.BInteger;
-import org.ballerinalang.core.model.values.BValue;
-import org.ballerinalang.test.util.BCompileUtil;
-import org.ballerinalang.test.util.BRunUtil;
-import org.ballerinalang.test.util.CompileResult;
-import org.testng.Assert;
+import org.ballerinalang.test.BCompileUtil;
+import org.ballerinalang.test.BRunUtil;
+import org.ballerinalang.test.CompileResult;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import static org.ballerinalang.test.util.BAssertUtil.validateError;
+import static org.ballerinalang.test.BAssertUtil.validateError;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.assertFalse;
 
 /**
  * Class to test module level variable declaration for all binding patterns.
@@ -53,34 +45,12 @@ public class ModuleVariableTest {
 
     @Test
     public void testBasicModuleLevelTupleVarDecl() {
-
-        BValue[] returns = BRunUtil.invoke(compileResult, "testBasic");
-
-        int index = 0;
-        assertTrue(((BBoolean) returns[index++]).booleanValue());
-        assertEquals(((BFloat) returns[index++]).floatValue(), 3.25);
-        assertEquals(returns[index++].stringValue(), "Dulmina");
-        assertEquals(returns.length, index++);
+        BRunUtil.invoke(compileResult, "testBasic");
     }
     
     @Test
     public void testComlexModuleLevelTupleVarDecl() {
-
-        BValue[] returns = BRunUtil.invoke(compileResult, "testTupleBindingWithRecordsAndObjects");
-
-        int index = 0;
-        Assert.assertEquals(returns[index++].stringValue(), "Test");
-        Assert.assertEquals(returns[index++].stringValue(), "Test");
-        Assert.assertEquals(((BInteger) returns[index++]).intValue(), 23);
-        Assert.assertEquals(((BInteger) returns[index++]).intValue(), 34);
-        Assert.assertTrue(((BBoolean) returns[index++]).booleanValue());
-        Assert.assertEquals(returns[index++].stringValue(), "Fooo");
-        Assert.assertEquals(((BFloat) returns[index++]).floatValue(), 3.7);
-        Assert.assertEquals(((BByte) returns[index++]).byteValue(), 23);
-        Assert.assertTrue(((BBoolean) returns[index++]).booleanValue());
-        Assert.assertEquals(((BInteger) returns[index++]).intValue(), 56);
-        Assert.assertEquals(((BInteger) returns[index++]).intValue(), 56);
-        assertEquals(returns.length, index++);
+        BRunUtil.invoke(compileResult, "testTupleBindingWithRecordsAndObjects");
     }
 
     @Test
@@ -106,28 +76,9 @@ public class ModuleVariableTest {
 
     @Test
     public void testModuleLevelRecordVarDecl() {
-
-        BValue[] returns = BRunUtil.invoke(recordVarCompileResult, "testBasic");
-        int index = 0;
-        assertEquals(returns[index++].stringValue(), "Jhone");
-        assertTrue(((BBoolean) returns[index++]).booleanValue());
-        assertEquals(returns.length, index++);
-
-        returns = BRunUtil.invoke(recordVarCompileResult, "recordVarInRecordVar");
-        index = 0;
-        assertEquals(returns[index++].stringValue(), "Peter");
-        assertEquals(((BInteger) returns[index++]).intValue(), 29);
-        assertEquals(returns[index++].stringValue(), "Y");
-        assertTrue(((BBoolean) returns[index++]).booleanValue());
-        assertEquals(returns.length, index++);
-
-        returns = BRunUtil.invoke(recordVarCompileResult, "tupleVarInRecordVar");
-        index = 0;
-        assertEquals(returns[index++].stringValue(), "Mac");
-        assertEquals(((BInteger) returns[index++]).intValue(), 21);
-        assertEquals(returns[index++].stringValue(), "Y");
-        assertFalse(((BBoolean) returns[index++]).booleanValue());
-        assertEquals(returns.length, index++);
+        BRunUtil.invoke(recordVarCompileResult, "testBasic");
+        BRunUtil.invoke(recordVarCompileResult, "recordVarInRecordVar");
+        BRunUtil.invoke(recordVarCompileResult, "tupleVarInRecordVar");
     }
 
     @Test

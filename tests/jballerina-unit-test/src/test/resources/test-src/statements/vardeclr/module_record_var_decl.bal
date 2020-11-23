@@ -27,8 +27,10 @@ type Person record {|
 
 Person {name:Fname, married:Married} = {name:"Jhone", married:true};
 
-public function testBasic() returns [string, boolean] {
+public function testBasic() {
     return [Fname, Married];
+    assertEquality("Jhone", Fname);
+    assertTrue(Married);
 }
 
 
@@ -40,8 +42,12 @@ type PersonWithAge record {
 };
 PersonWithAge {name: fName1, age: {age: theAge1, format:format1}, married} = getPersonWithAge();
 
-function recordVarInRecordVar() returns [string, int, string, boolean] {
-    return [fName1, theAge1, format1, married];
+function recordVarInRecordVar() returns {
+    assertEquality("Peter", fName1);
+    assertEquality(29, theAge1);
+    assertEquality("Y", format1);
+    assertTrue(married);
+
 }
 
 function getPersonWithAge() returns PersonWithAge {
@@ -57,8 +63,11 @@ type PersonWithAge2 record {
 };
 PersonWithAge2 {name: fName2, age: [age2, format2], married:married2} = getPersonWithAge2();
 
-function tupleVarInRecordVar() returns [string, int, string, boolean] {
-    return [fName2, age2, format2, married2];
+function tupleVarInRecordVar() returns {
+    assertEquality("Mac", fName2);
+    assertEquality(21, age2);
+    assertEquality("Y", format2);
+    assertFalse(married2);
 }
 
 function getPersonWithAge2() returns PersonWithAge2 {
@@ -72,3 +81,27 @@ const annotation annot on source var;
 
 @annot
 Age {age, format} = {age:24, format:"myFormat"};
+
+type AssertionError error;
+
+const ASSERTION_ERROR_REASON = "AssertionError";
+
+function assertTrue(any|error actual) {
+    assertEquality(true, actual);
+}
+
+function assertFalse(any|error actual) {
+    assertEquality(false, actual);
+}
+
+function assertEquality(any|error expected, any|error actual) {
+    if expected is anydata && actual is anydata && expected == actual {
+        return;
+    }
+
+    if expected === actual {
+        return;
+    }
+
+    panic AssertionError(ASSERTION_ERROR_REASON, message = "expected '" + expected.toString() + "', found '" + actual.toString () + "'");
+}
