@@ -28,7 +28,6 @@ type Person record {|
 Person {name:Fname, married:Married} = {name:"Jhone", married:true};
 
 public function testBasic() {
-    return [Fname, Married];
     assertEquality("Jhone", Fname);
     assertTrue(Married);
 }
@@ -42,12 +41,11 @@ type PersonWithAge record {
 };
 PersonWithAge {name: fName1, age: {age: theAge1, format:format1}, married} = getPersonWithAge();
 
-function recordVarInRecordVar() returns {
+function recordVarInRecordVar() {
     assertEquality("Peter", fName1);
     assertEquality(29, theAge1);
     assertEquality("Y", format1);
     assertTrue(married);
-
 }
 
 function getPersonWithAge() returns PersonWithAge {
@@ -63,7 +61,7 @@ type PersonWithAge2 record {
 };
 PersonWithAge2 {name: fName2, age: [age2, format2], married:married2} = getPersonWithAge2();
 
-function tupleVarInRecordVar() returns {
+function tupleVarInRecordVar() {
     assertEquality("Mac", fName2);
     assertEquality(21, age2);
     assertEquality("Y", format2);
