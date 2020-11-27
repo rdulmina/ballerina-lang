@@ -355,6 +355,7 @@ public class Desugar extends BLangNodeVisitor {
     private Stack<BLangSimpleVariableDef> enclosingOnFailCallFunc = new Stack<>();
 
     private SymbolEnv env;
+    private SymbolEnv initFunctionEnv;
     private int lambdaFunctionCount = 0;
     private int recordCount = 0;
     private int errorCount = 0;
@@ -602,6 +603,9 @@ public class Desugar extends BLangNodeVisitor {
         createInvokableSymbol(pkgNode.startFunction, env);
         // Create invokable symbol for stop function
         createInvokableSymbol(pkgNode.stopFunction, env);
+
+        this.initFunctionEnv =
+                SymbolEnv.createFunctionEnv(pkgNode.initFunction, pkgNode.initFunction.symbol.scope, env);
     }
 
     private void addUserDefinedModuleInitInvocationAndReturn(BLangPackage pkgNode) {
@@ -843,8 +847,20 @@ public class Desugar extends BLangNodeVisitor {
             // This will convert complex variables to simple variables
             switch (globalVar.getKind()) {
                 case TUPLE_VARIABLE:
-                case RECORD_VARIABLE:
                     BLangNode blockStatementNode = rewrite(globalVar, env);
+                    ((BLangBlockStmt) blockStatementNode).stmts.forEach(bLangStatement -> {
+                        if (bLangStatement.getKind() == NodeKind.FOREACH) {
+                            initFnBody.stmts.add(rewrite(bLangStatement, this.initFunctionEnv));
+                        } else {
+                            rewrite(bLangStatement, env);
+                            BLangSimpleVariableDef simpleVarDef = (BLangSimpleVariableDef) bLangStatement;
+                            addToInitFunction(simpleVarDef.var, initFnBody);
+                            desugaredGlobalVarList.add(simpleVarDef.var);
+                        }
+                    });
+                    break;
+                case RECORD_VARIABLE:
+                    blockStatementNode = rewrite(globalVar, env);
                     ((BLangBlockStmt) blockStatementNode).stmts.forEach(bLangStatement -> {
                         BLangSimpleVariableDef simpleVarDef1 = (BLangSimpleVariableDef) bLangStatement;
                         addToInitFunction(simpleVarDef1.var, initFnBody);
@@ -863,11 +879,12 @@ public class Desugar extends BLangNodeVisitor {
                             simpleGlobalVar.expr = getValueInvocation;
                         } else {
                             // If it is optional configuration create if else
-                            simpleGlobalVar.expr  = createIfElseFromConfigurable(simpleGlobalVar);
+                            simpleGlobalVar.expr = createIfElseFromConfigurable(simpleGlobalVar);
                         }
                     }
                     addToInitFunction(simpleGlobalVar, initFnBody);
-                    desugaredGlobalVarList.add(rewrite(simpleGlobalVar, env));
+                    desugaredGlobalVarList.add(simpleGlobalVar);
+                    break;
             }
         });
 
@@ -880,6 +897,7 @@ public class Desugar extends BLangNodeVisitor {
         }
         BLangAssignment assignment = createAssignmentStmt(globalVar);
         initFnBody.stmts.add(assignment);
+        globalVar.expr = null;
     }
 
     private void desugarClassDefinitions(List<TopLevelNode> topLevelNodes) {
@@ -1222,7 +1240,8 @@ public class Desugar extends BLangNodeVisitor {
     @Override
     public void visit(BLangSimpleVariable varNode) {
         if (((varNode.symbol.owner.tag & SymTag.INVOKABLE) != SymTag.INVOKABLE)
-                && (varNode.symbol.owner.tag & SymTag.LET) != SymTag.LET) {
+                && (varNode.symbol.owner.tag & SymTag.LET) != SymTag.LET &&
+                (varNode.symbol.owner.tag & SymTag.PACKAGE) != SymTag.PACKAGE) {
             varNode.expr = null;
             result = varNode;
             return;
@@ -1304,13 +1323,17 @@ public class Desugar extends BLangNodeVisitor {
 
         // Create the variable definition statements using the root block stmt created
         createVarDefStmts(varNode, blockStmt, tuple.symbol, null);
-        createRestFieldVarDefStmts(varNode, blockStmt, tuple.symbol);
 
-        // Finally rewrite the populated block statement
         if (((this.env.scope.owner.tag & SymTag.PACKAGE) == SymTag.PACKAGE)) {
+            // Rest field def stmt virtual variables will be added to init function body, hence change the env
+            SymbolEnv previousEnv = this.env;
+            this.env = this.initFunctionEnv;
+            createRestFieldVarDefStmts(varNode, blockStmt, tuple.symbol);
+            this.env = previousEnv;
             // If it is a global variable don't rewrite now, will be rewritten later
             result = blockStmt;
         } else {
+            createRestFieldVarDefStmts(varNode, blockStmt, tuple.symbol);
             result = rewrite(blockStmt, env);
         }
     }

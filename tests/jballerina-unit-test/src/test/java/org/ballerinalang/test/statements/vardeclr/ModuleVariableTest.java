@@ -51,6 +51,7 @@ public class ModuleVariableTest {
     @Test
     public void testComlexModuleLevelTupleVarDecl() {
         BRunUtil.invoke(compileResult, "testTupleBindingWithRecordsAndObjects");
+        BRunUtil.invoke(compileResult, "testTupleBindingPatternWithRestBindingPattern");
     }
 
     @Test
@@ -62,7 +63,6 @@ public class ModuleVariableTest {
         validateError(compileResultNegative, index++, "undefined symbol 'd'", 24, 9);
         validateError(compileResultNegative, index++, "only simple variables are allowed to be isolated", 31, 1);
         assertEquals(compileResultNegative.getErrorCount(), index);
-
     }
 
     @Test
@@ -88,9 +88,12 @@ public class ModuleVariableTest {
         int index = 0;
         validateError(recordVarCompileResultNegetive, index++, "redeclared symbol 'Fname'", 23, 14);
         validateError(recordVarCompileResultNegetive, index++, "redeclared symbol 'Married'", 25, 9);
-        validateError(recordVarCompileResultNegetive, index++, "invalid record binding pattern; unknown field 'age' in record type 'Person'", 31, 1);
-        validateError(recordVarCompileResultNegetive, index++, "only simple variables are allowed to be isolated", 34, 1);
-        validateError(recordVarCompileResultNegetive, index++, "only simple variables are allowed to be configurable", 37, 1);
+        validateError(recordVarCompileResultNegetive, index++,
+                "invalid record binding pattern; unknown field 'age' in record type 'Person'", 31, 1);
+        validateError(recordVarCompileResultNegetive, index++,
+                "only simple variables are allowed to be isolated", 34, 1);
+        validateError(recordVarCompileResultNegetive, index++,
+                "only simple variables are allowed to be configurable", 37, 1);
         assertEquals(recordVarCompileResultNegetive.getErrorCount(), index);
     }
 
