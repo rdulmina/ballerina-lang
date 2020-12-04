@@ -56,6 +56,7 @@ import org.wso2.ballerinalang.compiler.tree.BLangNodeVisitor;
 import org.wso2.ballerinalang.compiler.tree.BLangPackage;
 import org.wso2.ballerinalang.compiler.tree.BLangRecordVariable;
 import org.wso2.ballerinalang.compiler.tree.BLangResource;
+import org.wso2.ballerinalang.compiler.tree.BLangResourceFunction;
 import org.wso2.ballerinalang.compiler.tree.BLangService;
 import org.wso2.ballerinalang.compiler.tree.BLangSimpleVariable;
 import org.wso2.ballerinalang.compiler.tree.BLangTableKeySpecifier;
@@ -344,6 +345,7 @@ public class DataflowAnalyzer extends BLangNodeVisitor {
     }
 
     private void checkForUninitializedGlobalVars(List<BLangVariable> globalVars) {
+        // TODO: remove unwanted cases after disallowing uninitialized tuple variables from parser
         for (BLangVariable globalVar : globalVars) {
             switch (globalVar.getKind()) {
                 case VARIABLE:
@@ -367,6 +369,11 @@ public class DataflowAnalyzer extends BLangNodeVisitor {
                     break;
             }
         }
+    }
+
+    @Override
+    public void visit(BLangResourceFunction funcNode) {
+        visit((BLangFunction) funcNode);
     }
 
     @Override

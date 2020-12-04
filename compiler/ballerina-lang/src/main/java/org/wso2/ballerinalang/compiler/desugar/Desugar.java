@@ -92,6 +92,7 @@ import org.wso2.ballerinalang.compiler.tree.BLangPackage;
 import org.wso2.ballerinalang.compiler.tree.BLangRecordVariable;
 import org.wso2.ballerinalang.compiler.tree.BLangRecordVariable.BLangRecordVariableKeyValue;
 import org.wso2.ballerinalang.compiler.tree.BLangResource;
+import org.wso2.ballerinalang.compiler.tree.BLangResourceFunction;
 import org.wso2.ballerinalang.compiler.tree.BLangRetrySpec;
 import org.wso2.ballerinalang.compiler.tree.BLangSimpleVariable;
 import org.wso2.ballerinalang.compiler.tree.BLangTableKeyTypeConstraint;
@@ -844,20 +845,20 @@ public class Desugar extends BLangNodeVisitor {
         List<BLangVariable> desugaredGlobalVarList = new ArrayList<>();
 
         globalVars.forEach(globalVar -> {
-            // This will convert complex variables to simple variables
+            // This will convert complex variables to simple variables.
             switch (globalVar.getKind()) {
                 case TUPLE_VARIABLE:
                     BLangNode blockStatementNode = rewrite(globalVar, env);
-                    ((BLangBlockStmt) blockStatementNode).stmts.forEach(bLangStatement -> {
+                    for (BLangStatement bLangStatement : ((BLangBlockStmt) blockStatementNode).stmts) {
                         if (bLangStatement.getKind() == NodeKind.FOREACH) {
                             initFnBody.stmts.add(rewrite(bLangStatement, this.initFunctionEnv));
-                        } else {
-                            rewrite(bLangStatement, env);
-                            BLangSimpleVariableDef simpleVarDef = (BLangSimpleVariableDef) bLangStatement;
-                            addToInitFunction(simpleVarDef.var, initFnBody);
-                            desugaredGlobalVarList.add(simpleVarDef.var);
+                            continue;
                         }
-                    });
+                        rewrite(bLangStatement, env);
+                        BLangSimpleVariableDef simpleVarDef = (BLangSimpleVariableDef) bLangStatement;
+                        addToInitFunction(simpleVarDef.var, initFnBody);
+                        desugaredGlobalVarList.add(simpleVarDef.var);
+                    }
                     break;
                 case RECORD_VARIABLE:
                     blockStatementNode = rewrite(globalVar, env);
@@ -1191,6 +1192,11 @@ public class Desugar extends BLangNodeVisitor {
     }
 
     @Override
+    public void visit(BLangResourceFunction resourceFunction) {
+        visit((BLangFunction) resourceFunction);
+    }
+
+    @Override
     public void visit(BLangFunction funcNode) {
         SymbolEnv funcEnv = SymbolEnv.createFunctionEnv(funcNode, funcNode.symbol.scope, env);
         if (!funcNode.interfaceFunction) {
@@ -1332,10 +1338,10 @@ public class Desugar extends BLangNodeVisitor {
             this.env = previousEnv;
             // If it is a global variable don't rewrite now, will be rewritten later
             result = blockStmt;
-        } else {
-            createRestFieldVarDefStmts(varNode, blockStmt, tuple.symbol);
-            result = rewrite(blockStmt, env);
+            return;
         }
+        createRestFieldVarDefStmts(varNode, blockStmt, tuple.symbol);
+        result = rewrite(blockStmt, env);
     }
 
     @Override
