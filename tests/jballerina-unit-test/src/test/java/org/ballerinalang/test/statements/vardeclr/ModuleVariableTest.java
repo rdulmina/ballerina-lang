@@ -94,6 +94,9 @@ public class ModuleVariableTest {
         BRunUtil.invoke(recordVarCompileResult, "testBasic");
         BRunUtil.invoke(recordVarCompileResult, "recordVarInRecordVar");
         BRunUtil.invoke(recordVarCompileResult, "tupleVarInRecordVar");
+        BRunUtil.invoke(recordVarCompileResult, "testRecordVarWithAnnotations");
+//        BRunUtil.invoke(recordVarCompileResult, "testVariableForwardReferencingAndDeclaredWithVar");
+//        BRunUtil.invoke(recordVarCompileResult, "testRecordVariableWithRestBP");
     }
 
     @Test
@@ -104,7 +107,7 @@ public class ModuleVariableTest {
         validateError(recordVarCompileResultNegetive, index++,
                 "invalid record binding pattern; unknown field 'age' in record type 'Person'", 31, 1);
         validateError(recordVarCompileResultNegetive, index++,
-                "only simple variables are allowed to be isolated", 34, 1);
+                "only a simple variable can be marked as 'isolated'", 34, 1);
         validateError(recordVarCompileResultNegetive, index++,
                 "only simple variables are allowed to be configurable", 37, 1);
         assertEquals(recordVarCompileResultNegetive.getErrorCount(), index);
@@ -112,6 +115,7 @@ public class ModuleVariableTest {
 
     @Test
     public void testUninitializedModuleLevelRecordVar() {
+        // TODO: disallow uninitialized record variables from parser and update this test
         CompileResult compileResult =
                 BCompileUtil.compile("test-src/statements/vardeclr/uninitialized_module_record_var_decl.bal");
         int index = 0;
