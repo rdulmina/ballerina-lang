@@ -49,12 +49,13 @@ public class ModuleVariableTest {
     }
     
     @Test
-    public void testComlexModuleLevelTupleVarDecl() {
+    public void testComplexModuleLevelTupleVarDecl() {
         BRunUtil.invoke(compileResult, "testTupleBindingWithRecordsAndObjects");
         BRunUtil.invoke(compileResult, "testTupleBindingPatternWithRestBindingPattern");
         BRunUtil.invoke(compileResult, "testDeclaredWithVar");
         BRunUtil.invoke(compileResult, "testTupleVarWithAnnotations");
         BRunUtil.invoke(compileResult, "testVariableForwardReferencing");
+        BRunUtil.invoke(compileResult, "testVariableDeclaredInTupleAsAnnotationValue");
     }
 
     @Test
@@ -65,6 +66,7 @@ public class ModuleVariableTest {
         validateError(compileResultNegative, index++, "undefined symbol 'd'", 23, 12);
         validateError(compileResultNegative, index++, "undefined symbol 'd'", 24, 9);
         validateError(compileResultNegative, index++, "only a simple variable can be marked as 'isolated'", 31, 1);
+        validateError(compileResultNegative, index++, "annotation 'annot' is not allowed on var", 35, 1);
         assertEquals(compileResultNegative.getErrorCount(), index);
     }
 

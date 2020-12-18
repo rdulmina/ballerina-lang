@@ -1676,7 +1676,9 @@ public class DataflowAnalyzer extends BLangNodeVisitor {
     public void visit(BLangTupleVariable bLangTupleVariable) {
         analyzeNode(bLangTupleVariable.typeNode, env);
         if (bLangTupleVariable.expr != null) {
+            this.currDependentSymbol.push(bLangTupleVariable.symbol);
             analyzeNode(bLangTupleVariable.expr, env);
+            this.currDependentSymbol.pop();
             return;
         }
         bLangTupleVariable.memberVariables.forEach(member -> {

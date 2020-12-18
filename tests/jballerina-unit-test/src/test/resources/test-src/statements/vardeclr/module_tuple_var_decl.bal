@@ -68,24 +68,42 @@ function testDeclaredWithVar() {
 }
 
 // Test tuple var declaration with annotations
-const annotation annot on source var;
+const annotation map<string> annot on source var;
 
-@annot
+@annot {
+    value: "annotationValue"
+}
 [int, int] [j, k] = [1, 2];
+@annot {
+    value: "annotationValue"
+}
+var [j1, k1] = g;
 public function testTupleVarWithAnnotations() {
     assertEquality(1, j);
     assertEquality(2, k);
+    assertEquality(1, j1);
+    assertEquality("", k1);
+}
+
+annotation record {int i;} x on function;
+@x {
+    i: h
+}
+public function testVariableDeclaredInTupleAsAnnotationValue() {
+    typedesc<function ()> td = typeof testVariableDeclaredInTupleAsAnnotationValue;
+    record {int i;}? xVal = td.@x;
+    assertEquality(<record {int i;}>{i:1}, xVal);
 }
 
 // Test tuple variable reordering/forward referencing
 [decimal, byte] [l, m] = [n ,o];
-decimal n = 2.25;
-byte o = 20;
+[decimal, byte] [n, o] = [2.25, 20];
 public function testVariableForwardReferencing() {
     assertEquality(<decimal> 2.25, l);
     assertEquality(20, m);
 }
 
+// Support codes
 type Foo record {
     string name;
     int age;
