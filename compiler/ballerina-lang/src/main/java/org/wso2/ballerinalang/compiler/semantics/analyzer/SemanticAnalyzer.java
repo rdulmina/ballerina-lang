@@ -1132,8 +1132,6 @@ public class SemanticAnalyzer extends BLangNodeVisitor {
                     recursivelyDefineVariables(tupleVariable, blockEnv);
                     return;
                 }
-
-//                symbolEnter.defineNode(tupleVariable, blockEnv);
                 recursivelySetFinalFlag(tupleVariable);
                 break;
             case RECORD_VARIABLE:
