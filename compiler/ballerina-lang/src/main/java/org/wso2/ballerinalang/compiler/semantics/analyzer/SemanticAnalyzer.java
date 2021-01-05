@@ -39,6 +39,8 @@ import org.wso2.ballerinalang.compiler.semantics.model.SymbolEnv;
 import org.wso2.ballerinalang.compiler.semantics.model.SymbolTable;
 import org.wso2.ballerinalang.compiler.semantics.model.symbols.BAnnotationSymbol;
 import org.wso2.ballerinalang.compiler.semantics.model.symbols.BAttachedFunction;
+import org.wso2.ballerinalang.compiler.semantics.model.symbols.BClassSymbol;
+import org.wso2.ballerinalang.compiler.semantics.model.symbols.BEnumSymbol;
 import org.wso2.ballerinalang.compiler.semantics.model.symbols.BErrorTypeSymbol;
 import org.wso2.ballerinalang.compiler.semantics.model.symbols.BInvokableSymbol;
 import org.wso2.ballerinalang.compiler.semantics.model.symbols.BInvokableTypeSymbol;
@@ -442,6 +444,8 @@ public class SemanticAnalyzer extends BLangNodeVisitor {
             analyzeDef(typeDefinition.typeNode, env);
         }
 
+        final List<BAnnotationSymbol> annotSymbols = new ArrayList<>();
+
         typeDefinition.annAttachments.forEach(annotationAttachment -> {
             if (typeDefinition.typeNode.getKind() == NodeKind.OBJECT_TYPE) {
                 annotationAttachment.attachPoints.add(AttachPoint.Point.OBJECT);
@@ -449,7 +453,13 @@ public class SemanticAnalyzer extends BLangNodeVisitor {
             annotationAttachment.attachPoints.add(AttachPoint.Point.TYPE);
 
             annotationAttachment.accept(this);
+            annotSymbols.add(annotationAttachment.annotationSymbol);
         });
+
+        if (typeDefinition.flagSet.contains(Flag.ENUM)) {
+            ((BEnumSymbol) typeDefinition.symbol).addAnnotations(annotSymbols);
+        }
+
         validateAnnotationAttachmentCount(typeDefinition.annAttachments);
         validateBuiltinTypeAnnotationAttachment(typeDefinition.annAttachments);
     }
@@ -459,10 +469,12 @@ public class SemanticAnalyzer extends BLangNodeVisitor {
         AttachPoint.Point attachedPoint = classDefinition.flagSet.contains(Flag.SERVICE)
                 ? AttachPoint.Point.SERVICE
                 : AttachPoint.Point.CLASS;
+        BClassSymbol symbol = (BClassSymbol) classDefinition.symbol;
 
         classDefinition.annAttachments.forEach(annotationAttachment -> {
             annotationAttachment.attachPoints.add(attachedPoint);
             annotationAttachment.accept(this);
+            symbol.addAnnotation(annotationAttachment.annotationSymbol);
         });
         validateAnnotationAttachmentCount(classDefinition.annAttachments);
 
@@ -609,9 +621,11 @@ public class SemanticAnalyzer extends BLangNodeVisitor {
     }
 
     public void visit(BLangAnnotation annotationNode) {
+        BAnnotationSymbol symbol = (BAnnotationSymbol) annotationNode.symbol;
         annotationNode.annAttachments.forEach(annotationAttachment -> {
             annotationAttachment.attachPoints.add(AttachPoint.Point.ANNOTATION);
             annotationAttachment.accept(this);
+            symbol.addAnnotation(annotationAttachment.annotationSymbol);
         });
         validateAnnotationAttachmentCount(annotationNode.annAttachments);
     }
@@ -688,6 +702,7 @@ public class SemanticAnalyzer extends BLangNodeVisitor {
                     annotationAttachment.attachPoints.add(AttachPoint.Point.VAR);
                 }
                 annotationAttachment.accept(this);
+                varNode.symbol.addAnnotation(annotationAttachment.annotationSymbol);
             });
         }
         validateAnnotationAttachmentCount(varNode.annAttachments);
@@ -767,6 +782,7 @@ public class SemanticAnalyzer extends BLangNodeVisitor {
         for (BLangAnnotationAttachment annotationAttachment : varNode.annAttachments) {
             annotationAttachment.attachPoints.addAll(attachPointsList);
             annotationAttachment.accept(this);
+            varNode.symbol.addAnnotation(annotationAttachment.annotationSymbol);
         }
     }
 
@@ -2191,7 +2207,6 @@ public class SemanticAnalyzer extends BLangNodeVisitor {
         }
         BType matchExprType = wildCardMatchPattern.matchExpr.type;
         if (types.isAssignable(matchExprType, symTable.anyType)) {
-            wildCardMatchPattern.matchesAll = true;
             wildCardMatchPattern.type = symTable.anyType;
             return;
         }
@@ -2683,6 +2698,7 @@ public class SemanticAnalyzer extends BLangNodeVisitor {
         constant.annAttachments.forEach(annotationAttachment -> {
             annotationAttachment.attachPoints.add(AttachPoint.Point.CONST);
             annotationAttachment.accept(this);
+            constant.symbol.addAnnotation(annotationAttachment.annotationSymbol);
         });
 
         BLangExpression expression = constant.expr;

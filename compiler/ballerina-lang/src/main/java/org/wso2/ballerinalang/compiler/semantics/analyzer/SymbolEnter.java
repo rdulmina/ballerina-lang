@@ -49,6 +49,7 @@ import org.wso2.ballerinalang.compiler.semantics.model.SymbolEnv;
 import org.wso2.ballerinalang.compiler.semantics.model.SymbolTable;
 import org.wso2.ballerinalang.compiler.semantics.model.symbols.BAnnotationSymbol;
 import org.wso2.ballerinalang.compiler.semantics.model.symbols.BAttachedFunction;
+import org.wso2.ballerinalang.compiler.semantics.model.symbols.BClassSymbol;
 import org.wso2.ballerinalang.compiler.semantics.model.symbols.BConstantSymbol;
 import org.wso2.ballerinalang.compiler.semantics.model.symbols.BConstructorSymbol;
 import org.wso2.ballerinalang.compiler.semantics.model.symbols.BEnumSymbol;
@@ -408,12 +409,14 @@ public class SymbolEnter extends BLangNodeVisitor {
         pkgNode.globalVars.forEach(var -> defineNode(var, pkgEnv));
 
         // Update globalVar for endpoints.
-        pkgNode.globalVars.forEach(var -> {
-           if (var.getKind() == NodeKind.VARIABLE && var.symbol.type.tsymbol != null &&
-                   Symbols.isFlagOn(var.symbol.type.tsymbol.flags, Flags.CLIENT)) {
-               var.symbol.tag = SymTag.ENDPOINT;
+        for (BLangVariable var : pkgNode.globalVars) {
+            if (var.getKind() == NodeKind.VARIABLE) {
+                BTypeSymbol tSymbol = var.symbol.type.tsymbol;
+                if (tSymbol != null && Symbols.isFlagOn(tSymbol.flags, Flags.CLIENT)) {
+                    var.symbol.tag = SymTag.ENDPOINT;
+                }
             }
-        });
+        }
     }
 
     private void defineDistinctClassAndObjectDefinitions(List<BLangNode> typDefs) {
@@ -616,9 +619,9 @@ public class SymbolEnter extends BLangNodeVisitor {
         boolean isPublicType = flags.contains(Flag.PUBLIC);
         Name className = names.fromIdNode(classDefinition.name);
 
-        BTypeSymbol tSymbol = Symbols.createClassSymbol(Flags.asMask(flags), className, env.enclPkg.symbol.pkgID, null,
-                                                        env.scope.owner, classDefinition.name.pos,
-                                                        getOrigin(className, flags), classDefinition.isServiceDecl);
+        BClassSymbol tSymbol = Symbols.createClassSymbol(Flags.asMask(flags), className, env.enclPkg.symbol.pkgID, null,
+                                                         env.scope.owner, classDefinition.name.pos,
+                                                         getOrigin(className, flags), classDefinition.isServiceDecl);
         tSymbol.scope = new Scope(tSymbol);
         tSymbol.markdownDocumentation = getMarkdownDocAttachment(classDefinition.markdownDocumentationAttachment);
 
@@ -1664,16 +1667,16 @@ public class SymbolEnter extends BLangNodeVisitor {
             switch (varNode.type.tag) {
                 case TypeTags.UNION:
                     Set<BType> unionType = types.expandAndGetMemberTypesRecursive(varNode.type);
-                    List<BType> possibleTypes = unionType.stream()
-                            .filter(type -> {
-                                if (TypeTags.TUPLE == type.tag &&
-                                        (varNode.memberVariables.size() == ((BTupleType) type).tupleTypes.size())) {
-                                    return true;
-                                }
-                                return TypeTags.ANY == type.tag || TypeTags.ANYDATA == type.tag;
-                            })
-                            .collect(Collectors.toList());
-
+                    List<BType> possibleTypes = new ArrayList<>();
+                    for (BType type :unionType) {
+                        if (!(TypeTags.TUPLE == type.tag &&
+                                (varNode.memberVariables.size() == ((BTupleType) type).tupleTypes.size())) &&
+                                TypeTags.ANY != type.tag &&
+                                TypeTags.ANYDATA != type.tag) {
+                            continue;
+                        }
+                        possibleTypes.add(type);
+                    }
                     if (possibleTypes.isEmpty()) {
                         dlog.error(varNode.pos, DiagnosticErrorCode.INVALID_TUPLE_BINDING_PATTERN_DECL, varNode.type);
                         return false;
@@ -2880,6 +2883,10 @@ public class SymbolEnter extends BLangNodeVisitor {
         if (Symbols.isFlagOn(funcSymbol.type.tsymbol.flags, Flags.ISOLATED)) {
             funcSymbol.type.flags |= Flags.ISOLATED;
         }
+
+        if (Symbols.isFlagOn(funcSymbol.type.tsymbol.flags, Flags.TRANSACTIONAL)) {
+            funcSymbol.type.flags |= Flags.TRANSACTIONAL;
+        }
     }
 
     private void defineInvokableSymbolParams(BLangInvokableNode invokableNode, BInvokableSymbol invokableSymbol,
@@ -3515,6 +3522,11 @@ public class SymbolEnter extends BLangNodeVisitor {
         if (function.flagSet.contains(Flag.ISOLATED)) {
             invokableType.flags |= Flags.ISOLATED;
             invokableType.tsymbol.flags |= Flags.ISOLATED;
+        }
+
+        if (function.flagSet.contains(Flag.TRANSACTIONAL)) {
+            invokableType.flags |= Flags.TRANSACTIONAL;
+            invokableType.tsymbol.flags |= Flags.TRANSACTIONAL;
         }
 
         variable.type = invokableType;

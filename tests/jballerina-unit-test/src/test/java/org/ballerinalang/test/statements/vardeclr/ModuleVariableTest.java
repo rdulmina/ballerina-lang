@@ -20,6 +20,7 @@ import org.ballerinalang.test.BCompileUtil;
 import org.ballerinalang.test.BRunUtil;
 import org.ballerinalang.test.CompileResult;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import static org.ballerinalang.test.BAssertUtil.validateError;
@@ -48,14 +49,21 @@ public class ModuleVariableTest {
         BRunUtil.invoke(compileResult, "testBasic");
     }
     
-    @Test
-    public void testComplexModuleLevelTupleVarDecl() {
-        BRunUtil.invoke(compileResult, "testTupleBindingWithRecordsAndObjects");
-        BRunUtil.invoke(compileResult, "testTupleBindingPatternWithRestBindingPattern");
-        BRunUtil.invoke(compileResult, "testDeclaredWithVar");
-        BRunUtil.invoke(compileResult, "testTupleVarWithAnnotations");
-        BRunUtil.invoke(compileResult, "testVariableForwardReferencing");
-        BRunUtil.invoke(compileResult, "testVariableDeclaredInTupleAsAnnotationValue");
+    @Test(dataProvider = "complexModuleLevelTupleVarDeclData")
+    public void testComplexModuleLevelTupleVarDecl(String functionName) {
+        BRunUtil.invoke(compileResult, functionName);
+    }
+
+    @DataProvider
+    public Object[] complexModuleLevelTupleVarDeclData() {
+        return new Object[]{
+                "testTupleBindingWithRecordsAndObjects",
+                "testTupleBindingPatternWithRestBindingPattern",
+                "testDeclaredWithVar",
+                "testTupleVarWithAnnotations",
+                "testVariableForwardReferencing",
+                "testVariableDeclaredInTupleAsAnnotationValue"
+        };
     }
 
     @Test
@@ -78,6 +86,16 @@ public class ModuleVariableTest {
                 "test-src/statements/vardeclr/module_tuple_var_decl_taint_analysis_negetive.bal");
         int index = 0;
         validateError(compileResult, index++, "tainted value passed to global variable 'p'", 21, 5);
+        assertEquals(compileResult.getErrorCount(), index);
+    }
+
+    @Test
+    public void testModuleLevelTupleVarAnnotationNegetive() {
+        CompileResult compileResult = BCompileUtil.compile(
+                "test-src/statements/vardeclr/module_tuple_var_decl_annotation_negetive.bal");
+        int index = 0;
+        validateError(compileResult, index++,
+                "annotation 'ballerina/lang.annotations:1.0.0:deprecated' is not allowed on var", 20, 1);
         assertEquals(compileResult.getErrorCount(), index);
     }
 
