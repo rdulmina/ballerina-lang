@@ -1860,7 +1860,7 @@ public class SymbolEnter extends BLangNodeVisitor {
                     recordVarType = (BRecordType) symTable.recordType;
 
                     LinkedHashMap<String, BField> fields =
-                            populateAndGetPossibleFieldsForRecVar(recordVar, possibleTypes, recordSymbol);
+                            populateAndGetPossibleFieldsForRecVar(recordVar, possibleTypes, recordSymbol, env);
 
                     if (recordVar.restParam != null) {
                         LinkedHashSet<BType> memberTypes = possibleTypes.stream()
@@ -1891,21 +1891,21 @@ public class SymbolEnter extends BLangNodeVisitor {
 
                 if (possibleTypes.get(0).tag == TypeTags.MAP) {
                     recordVarType = createSameTypedFieldsRecordType(recordVar,
-                            ((BMapType) possibleTypes.get(0)).constraint);
+                            ((BMapType) possibleTypes.get(0)).constraint, env);
                     break;
                 }
 
-                recordVarType = createSameTypedFieldsRecordType(recordVar, possibleTypes.get(0));
+                recordVarType = createSameTypedFieldsRecordType(recordVar, possibleTypes.get(0), env);
                 break;
             case TypeTags.RECORD:
                 recordVarType = (BRecordType) recordVar.type;
                 break;
             case TypeTags.MAP:
-                recordVarType = createSameTypedFieldsRecordType(recordVar, ((BMapType) recordVar.type).constraint);
+                recordVarType = createSameTypedFieldsRecordType(recordVar, ((BMapType) recordVar.type).constraint, env);
                 break;
             case TypeTags.ANY:
             case TypeTags.ANYDATA:
-                recordVarType = createSameTypedFieldsRecordType(recordVar, recordVar.type);
+                recordVarType = createSameTypedFieldsRecordType(recordVar, recordVar.type, env);
                 break;
             default:
                 dlog.error(recordVar.pos, DiagnosticErrorCode.INVALID_RECORD_BINDING_PATTERN, recordVar.type);
@@ -2008,7 +2008,8 @@ public class SymbolEnter extends BLangNodeVisitor {
      */
     private LinkedHashMap<String, BField> populateAndGetPossibleFieldsForRecVar(BLangRecordVariable recordVar,
                                                                                 List<BType> possibleTypes,
-                                                                                BRecordTypeSymbol recordSymbol) {
+                                                                                BRecordTypeSymbol recordSymbol,
+                                                                                SymbolEnv env) {
         LinkedHashMap<String, BField> fields = new LinkedHashMap<>();
         for (BLangRecordVariable.BLangRecordVariableKeyValue bLangRecordVariableKeyValue : recordVar.variableList) {
             String fieldName = bLangRecordVariableKeyValue.key.value;
@@ -2048,7 +2049,8 @@ public class SymbolEnter extends BLangNodeVisitor {
         return fields;
     }
 
-    private BRecordType createSameTypedFieldsRecordType(BLangRecordVariable recordVar, BType fieldTypes) {
+    private BRecordType createSameTypedFieldsRecordType(BLangRecordVariable recordVar, BType fieldTypes,
+                                                        SymbolEnv env) {
         BType fieldType;
         if (fieldTypes.isNullable()) {
             fieldType = fieldTypes;
@@ -2113,14 +2115,14 @@ public class SymbolEnter extends BLangNodeVisitor {
             memberType = hasOnlyPureTypedFields(recordType) ? symTable.pureType :
                     BUnionType.create(null, symTable.anyType, symTable.errorType);
         } else {
-            memberType = hasOnlyAnydataTypedFields(recordType) ? symTable.anydataType : symTable.anyType;
+            memberType = hasOnlyAnyDataTypedFields(recordType) ? symTable.anydataType : symTable.anyType;
         }
 
         return new BMapType(TypeTags.MAP, memberType, null);
     }
 
 
-    private boolean hasOnlyAnydataTypedFields(BRecordType recordType) {
+    private boolean hasOnlyAnyDataTypedFields(BRecordType recordType) {
         for (BField field : recordType.fields.values()) {
             BType fieldType = field.type;
             if (!fieldType.isAnydata()) {
