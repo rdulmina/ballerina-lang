@@ -67,6 +67,7 @@ import org.wso2.ballerinalang.compiler.tree.expressions.BLangCommitExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangConstRef;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangConstant;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangElvisExpr;
+import org.wso2.ballerinalang.compiler.tree.expressions.BLangErrorConstructorExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangErrorVarRef;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangFieldBasedAccess;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangGroupExpr;
@@ -319,6 +320,13 @@ public class ConstantPropagation extends BLangNodeVisitor {
         rewrite(bLangInvocationNode.requiredArgs);
         rewrite(bLangInvocationNode.restArgs);
         result = bLangInvocationNode;
+    }
+
+    @Override
+    public void visit(BLangErrorConstructorExpr errorConstructorExpr) {
+        rewrite(errorConstructorExpr.positionalArgs);
+        rewrite(errorConstructorExpr.namedArgs);
+        result = errorConstructorExpr;
     }
 
     @Override

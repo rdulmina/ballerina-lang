@@ -114,7 +114,7 @@ public function load(string filePath) {
 # + a - parameter a
 # + return - `float` return parameter is float
 # # parameter `invalidParameter`
-[int ,float, string] [a, b, c] = [1, 2.5, "Mac"];
+[int, float, string] [a, b, c] = [1, 2.5, "Mac"];
 
 # + a - parameter a
 # + return - `float` return parameter is float
