@@ -2408,11 +2408,11 @@ public class SymbolEnter extends BLangNodeVisitor {
 
         if (!errorVariable.isInMatchStmt) {
             errorVariable.message.type = symTable.stringType;
-            errorVariable.message.accept(this);
+            defineNode(errorVariable.message, env);
 
             if (errorVariable.cause != null) {
                 errorVariable.cause.type = symTable.errorOrNilType;
-                errorVariable.cause.accept(this);
+                defineNode(errorVariable.cause, env);
             }
         }
 
@@ -2434,14 +2434,16 @@ public class SymbolEnter extends BLangNodeVisitor {
 
         if (isRestDetailBindingAvailable(errorVariable)) {
             errorVariable.restDetail.type = symTable.detailType;
-            errorVariable.restDetail.accept(this);
+            defineNode(errorVariable.restDetail, env);
         }
         return true;
     }
 
     private boolean validateErrorVariable(BLangErrorVariable errorVariable, BErrorType errorType, SymbolEnv env) {
         errorVariable.message.type = symTable.stringType;
-        errorVariable.message.accept(this);
+        if (errorVariable.symbol == null) {
+            defineNode(errorVariable.message, env);
+        }
 
         BRecordType recordType = getDetailAsARecordType(errorType);
         LinkedHashMap<String, BField> detailFields = recordType.fields;
@@ -2472,7 +2474,7 @@ public class SymbolEnter extends BLangNodeVisitor {
             boolean isIgnoredVar = boundVar.getKind() == NodeKind.VARIABLE
                     && ((BLangSimpleVariable) boundVar).name.value.equals(Names.IGNORE.value);
             if (!isIgnoredVar) {
-                boundVar.accept(this);
+                defineNode(boundVar, env);
             }
         }
 
@@ -2484,7 +2486,7 @@ public class SymbolEnter extends BLangNodeVisitor {
             BMapType restType = new BMapType(TypeTags.MAP, constraint, typeSymbol);
             typeSymbol.type = restType;
             errorVariable.restDetail.type = restType;
-            errorVariable.restDetail.accept(this);
+            defineNode(errorVariable.restDetail, env);
         }
         return true;
     }
