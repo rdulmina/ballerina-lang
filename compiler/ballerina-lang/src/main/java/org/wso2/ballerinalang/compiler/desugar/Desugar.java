@@ -1943,8 +1943,9 @@ public class Desugar extends BLangNodeVisitor {
                     BLangBlockStmt blockStmt = ASTBuilderUtil.createBlockStmt(bLangStatement.pos);
                     blockStmt.addStatement(bLangStatement);
                     parentBlockStmt.addStatement(blockStmt);
+                } else {
+                    parentBlockStmt.addStatement(bLangStatement);
                 }
-                parentBlockStmt.addStatement(bLangStatement);
             }
         }
     }
