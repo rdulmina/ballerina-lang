@@ -384,6 +384,8 @@ public class Desugar extends BLangNodeVisitor {
     private int letCount = 0;
     private int varargCount = 0;
     private int tupleVarCount = 0;
+    private int recordVarCount = 0;
+    private int errorVarCount = 0;
 
     // Safe navigation related variables
     private Stack<BLangMatch> matchStmtStack = new Stack<>();
@@ -871,6 +873,8 @@ public class Desugar extends BLangNodeVisitor {
             // This will convert complex variables to simple variables.
             switch (globalVar.getKind()) {
                 case TUPLE_VARIABLE:
+                case RECORD_VARIABLE:
+                case ERROR_VARIABLE:
                     BLangNode blockStatementNode = rewrite(globalVar, initFunctionEnv);
                     List<BLangStatement> statements = ((BLangBlockStmt) blockStatementNode).stmts;
                     for (int i = 0; i < statements.size(); i++) {
@@ -882,10 +886,10 @@ public class Desugar extends BLangNodeVisitor {
                             initFnBody.stmts.add(bLangStatement);
                             continue;
                         }
-                        BLangSimpleVariableDef simpleVarDef = (BLangSimpleVariableDef) bLangStatement;
-                        simpleVarDef.var.annAttachments = globalVar.getAnnotationAttachments();
-                        addToInitFunction(simpleVarDef.var, initFnBody);
-                        desugaredGlobalVarList.add(simpleVarDef.var);
+                        BLangSimpleVariable simpleVar = ((BLangSimpleVariableDef) bLangStatement).var;
+                        simpleVar.annAttachments = globalVar.getAnnotationAttachments();
+                        addToInitFunction(simpleVar, initFnBody);
+                        desugaredGlobalVarList.add(simpleVar);
                     }
                     break;
                 default:
@@ -907,7 +911,8 @@ public class Desugar extends BLangNodeVisitor {
                     // Module init should fail if listener is a error value.
                     if (Symbols.isFlagOn(globalVarFlags, Flags.LISTENER)
                             && types.containsErrorType(globalVar.expr.type)) {
-                        globalVar.expr = ASTBuilderUtil.createCheckExpr(globalVar.expr.pos, globalVar.expr, globalVar.type);
+                        globalVar.expr = ASTBuilderUtil.createCheckExpr(globalVar.expr.pos, globalVar.expr,
+                                globalVar.type);
                     }
 
                     addToInitFunction(simpleGlobalVar, initFnBody);
@@ -1365,9 +1370,10 @@ public class Desugar extends BLangNodeVisitor {
     @Override
     public void visit(BLangRecordVariable varNode) {
         final BLangBlockStmt blockStmt = ASTBuilderUtil.createBlockStmt(varNode.pos);
+        String name = String.format("$map$_%d$", recordVarCount++);
         final BLangSimpleVariable mapVariable =
-                ASTBuilderUtil.createVariable(varNode.pos, "$map$_0", symTable.mapAllType, null,
-                                              new BVarSymbol(0, names.fromString("$map$_0"), this.env.scope.owner.pkgID,
+                ASTBuilderUtil.createVariable(varNode.pos, name, symTable.mapAllType, null,
+                                              new BVarSymbol(0, names.fromString(name), this.env.scope.owner.pkgID,
                                                              symTable.mapAllType, this.env.scope.owner, varNode.pos,
                                                              VIRTUAL));
         mapVariable.expr = varNode.expr;
@@ -1375,6 +1381,7 @@ public class Desugar extends BLangNodeVisitor {
         variableDef.var = mapVariable;
 
         createVarDefStmts(varNode, blockStmt, mapVariable.symbol, null);
+
         result = rewrite(blockStmt, env);
     }
 
@@ -1385,10 +1392,11 @@ public class Desugar extends BLangNodeVisitor {
 
         BType errorType = varNode.type == null ? symTable.errorType : varNode.type;
         // Create a simple var for the error 'error x = ($error$)'.
-        BVarSymbol errorVarSymbol = new BVarSymbol(0, names.fromString(GENERATED_ERROR_VAR), this.env.scope.owner.pkgID,
+        String name = String.format("$error$_%d$", errorVarCount++);
+        BVarSymbol errorVarSymbol = new BVarSymbol(0, names.fromString(name), this.env.scope.owner.pkgID,
                                                    errorType, this.env.scope.owner, varNode.pos, VIRTUAL);
-        final BLangSimpleVariable error = ASTBuilderUtil.createVariable(varNode.pos, errorVarSymbol.name.value,
-                                                                        errorType, null, errorVarSymbol);
+        final BLangSimpleVariable error = ASTBuilderUtil.createVariable(varNode.pos, name, errorType, null,
+                errorVarSymbol);
         error.expr = varNode.expr;
         final BLangSimpleVariableDef variableDef = ASTBuilderUtil.createVariableDefStmt(varNode.pos, blockStmt);
         variableDef.var = error;
@@ -1646,8 +1654,10 @@ public class Desugar extends BLangNodeVisitor {
                     .map(var -> var.getKey().getValue())
                     .collect(Collectors.toList());
 
+            final BLangBlockStmt blockStmt = ASTBuilderUtil.createBlockStmt(parentRecordVariable.pos);
             BLangSimpleVariable filteredDetail = generateRestFilter(variableReference, pos,
-                    keysToRemove, restParamType, parentBlockStmt);
+                    keysToRemove, restParamType, blockStmt);
+            parentBlockStmt.addStatement(blockStmt);
 
             BLangSimpleVarRef varRef = ASTBuilderUtil.createVariableRef(pos, filteredDetail.symbol);
 
@@ -1714,14 +1724,6 @@ public class Desugar extends BLangNodeVisitor {
             return;
         }
 
-        BType detailMapType;
-        BType detailType = ((BErrorType) parentErrorVariable.type).detailType;
-        if (detailType.tag == TypeTags.MAP) {
-            detailMapType = detailType;
-        } else {
-            detailMapType = symTable.detailType;
-        }
-
         parentErrorVariable.detailExpr = generateErrorDetailBuiltinFunction(
                 parentErrorVariable.pos,
                 convertedErrorVarSymbol, null);
@@ -1729,7 +1731,11 @@ public class Desugar extends BLangNodeVisitor {
         BLangSimpleVariableDef detailTempVarDef = createVarDef("$error$detail",
                 parentErrorVariable.detailExpr.type, parentErrorVariable.detailExpr, parentErrorVariable.pos);
         detailTempVarDef.type = parentErrorVariable.detailExpr.type;
-        parentBlockStmt.addStatement(detailTempVarDef);
+
+        final BLangBlockStmt blockStmt = ASTBuilderUtil.createBlockStmt(parentErrorVariable.pos);
+        blockStmt.addStatement(detailTempVarDef);
+        // Wrap detail var def with a block statement to add it directly to init function in module var case
+        parentBlockStmt.addStatement(blockStmt);
         this.env.scope.define(names.fromIdNode(detailTempVarDef.var.name), detailTempVarDef.var.symbol);
 
         for (BLangErrorVariable.BLangErrorDetailEntry detailEntry : parentErrorVariable.detail) {
@@ -1747,18 +1753,17 @@ public class Desugar extends BLangNodeVisitor {
                     .map(detail -> detail.key.getValue())
                     .collect(Collectors.toList());
 
+            final BLangBlockStmt restblockStmt = ASTBuilderUtil.createBlockStmt(parentErrorVariable.pos);
             BLangSimpleVariable filteredDetail = generateRestFilter(detailVarRef, parentErrorVariable.pos, keysToRemove,
-                    parentErrorVariable.restDetail.type, parentBlockStmt);
+                    parentErrorVariable.restDetail.type, restblockStmt);
+            parentBlockStmt.addStatement(restblockStmt);
+
             BLangSimpleVariableDef variableDefStmt = ASTBuilderUtil.createVariableDefStmt(pos, parentBlockStmt);
             variableDefStmt.var = ASTBuilderUtil.createVariable(pos,
                     parentErrorVariable.restDetail.name.value,
                     filteredDetail.type,
                     ASTBuilderUtil.createVariableRef(pos, filteredDetail.symbol),
                     parentErrorVariable.restDetail.symbol);
-            BLangAssignment assignmentStmt = ASTBuilderUtil.createAssignmentStmt(pos,
-                    ASTBuilderUtil.createVariableRef(pos, parentErrorVariable.restDetail.symbol),
-                    ASTBuilderUtil.createVariableRef(pos, filteredDetail.symbol));
-            parentBlockStmt.addStatement(assignmentStmt);
         }
         rewrite(parentBlockStmt, env);
     }
@@ -1934,26 +1939,29 @@ public class Desugar extends BLangNodeVisitor {
     private void createAndAddBoundVariableDef(BLangBlockStmt parentBlockStmt,
                                               BLangErrorVariable.BLangErrorDetailEntry detailEntry,
                                               BLangExpression detailEntryVar) {
-        if (detailEntry.valueBindingPattern.getKind() == NodeKind.VARIABLE) {
-            BLangSimpleVariableDef errorDetailVar = createVarDef(
-                    ((BLangSimpleVariable) detailEntry.valueBindingPattern).name.value,
-                    detailEntry.valueBindingPattern.type,
-                    detailEntryVar,
-                    detailEntry.valueBindingPattern.pos);
+        BLangVariable valueBindingPattern = detailEntry.valueBindingPattern;
+        NodeKind valueBindingPatternKind = valueBindingPattern.getKind();
+
+        if (valueBindingPatternKind == NodeKind.VARIABLE) {
+            BLangSimpleVariableDef errorDetailVar = createVarDef(((BLangSimpleVariable) valueBindingPattern).name.value,
+                    valueBindingPattern.type, detailEntryVar, valueBindingPattern.pos);
             parentBlockStmt.addStatement(errorDetailVar);
-
-        } else if (detailEntry.valueBindingPattern.getKind() == NodeKind.RECORD_VARIABLE) {
-            BLangRecordVariableDef recordVariableDef = ASTBuilderUtil.createRecordVariableDef(
-                    detailEntry.valueBindingPattern.pos,
-                    (BLangRecordVariable) detailEntry.valueBindingPattern);
-            recordVariableDef.var.expr = detailEntryVar;
-            recordVariableDef.type = symTable.recordType;
-            parentBlockStmt.addStatement(recordVariableDef);
-
-        } else if (detailEntry.valueBindingPattern.getKind() == NodeKind.TUPLE_VARIABLE) {
-            BLangTupleVariableDef tupleVariableDef = ASTBuilderUtil.createTupleVariableDef(
-                    detailEntry.valueBindingPattern.pos, (BLangTupleVariable) detailEntry.valueBindingPattern);
-            parentBlockStmt.addStatement(tupleVariableDef);
+        } else {
+            valueBindingPattern.expr = detailEntryVar;
+            BLangNode blockStatementNode = rewrite(valueBindingPattern, env);
+            List<BLangStatement> statements = ((BLangBlockStmt) blockStatementNode).stmts;
+            for (int i = 0; i < statements.size(); i++) {
+                BLangStatement bLangStatement = statements.get(i);
+                if (i == 0) {
+                    // Wrap first virtual var def for init expression with a block statement to add it directly to
+                    // init function in module var case
+                    BLangBlockStmt blockStmt = ASTBuilderUtil.createBlockStmt(bLangStatement.pos);
+                    blockStmt.addStatement(bLangStatement);
+                    parentBlockStmt.addStatement(blockStmt);
+                } else {
+                    parentBlockStmt.addStatement(bLangStatement);
+                }
+            }
         }
     }
 
@@ -2139,6 +2147,7 @@ public class Desugar extends BLangNodeVisitor {
         BLangLambdaFunction lambdaFunction = (BLangLambdaFunction) TreeBuilder.createLambdaFunctionNode();
         lambdaFunction.function = function;
         lambdaFunction.type = functionSymbol.type;
+        lambdaFunction.capturedClosureEnv = env;
         return lambdaFunction;
     }
 
