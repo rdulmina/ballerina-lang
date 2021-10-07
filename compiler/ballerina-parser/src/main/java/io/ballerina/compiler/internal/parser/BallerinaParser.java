@@ -6033,7 +6033,7 @@ public class BallerinaParser extends AbstractParser {
                 argsList.add(curArg);
                 lastValidArgKind = curArg.kind;
             } else if (errorCode == DiagnosticErrorCode.ERROR_NAMED_ARG_FOLLOWED_BY_POSITIONAL_ARG &&
-                    isPositionalArgWithSimpleNameRef(curArg)) {
+                    ((STPositionalArgumentNode) curArg).expression.kind == SyntaxKind.SIMPLE_NAME_REFERENCE) {
                 STNode missingEqual = SyntaxErrors.createMissingToken(SyntaxKind.EQUAL_TOKEN);
                 STToken missingIdentifier = SyntaxErrors.createMissingToken(SyntaxKind.IDENTIFIER_TOKEN);
                 STNode nameRef = STNodeFactory.createSimpleNameReferenceNode(missingIdentifier);
@@ -6078,11 +6078,6 @@ public class BallerinaParser extends AbstractParser {
                 throw new IllegalStateException("Invalid SyntaxKind in an argument");
         }
         return errorCode;
-    }
-
-    private boolean isPositionalArgWithSimpleNameRef(STNode arg) {
-        STNode expr = ((STPositionalArgumentNode) arg).expression;
-        return expr.kind == SyntaxKind.SIMPLE_NAME_REFERENCE;
     }
 
     private STNode parseArgEnd() {
@@ -12606,10 +12601,12 @@ public class BallerinaParser extends AbstractParser {
      * @return Parsed node
      */
     private STNode parseFieldAccessIdentifier(boolean isInConditionalExpr) {
-        if (isEndOfStatements()) {
+        STToken nextToken = peek();
+        if (!isPredeclaredIdentifier(nextToken.kind)) {
+            // foo.<cursor>
             STNode identifier = SyntaxErrors.createMissingTokenWithDiagnostics(SyntaxKind.IDENTIFIER_TOKEN,
                     DiagnosticErrorCode.ERROR_MISSING_IDENTIFIER);
-            return STNodeFactory.createSimpleNameReferenceNode(identifier);
+            return parseQualifiedIdentifier(identifier, isInConditionalExpr);
         }
 
         return parseQualifiedIdentifier(ParserRuleContext.FIELD_ACCESS_IDENTIFIER, isInConditionalExpr);
